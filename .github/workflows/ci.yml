@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      force_heavy:
+        description: Run heavy plugin builds for manual dispatch
+        required: false
+        type: boolean
+        default: true
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    uses: EsionHsrahLatigid/yup-actions/.github/workflows/plugin-ci.yml@d7746cba582c0a00e6e7f0cdc37ae3b2d38830d8
+    permissions:
+      contents: read
+    with:
+      product_name: BrickMaw
+      product_slug: brickmaw
+      cmake_option_prefix: BRICKMAW
+      debug_targets_json: '["brickmaw_dsp_tests"]'
+      release_test_targets_json: '["brickmaw_dsp_tests","brickmaw_plugin_tests","brickmaw_editor_tests"]'
+      windows_debug_plugins: false
