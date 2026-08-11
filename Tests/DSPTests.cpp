@@ -40,6 +40,14 @@ void processMono(brickmaw::dsp::BrickMawLimiter& limiter, std::vector<float>& sa
     float* channels[] { samples.data() };
     limiter.processBlock(channels, 1, static_cast<int>(samples.size()));
 }
+
+int firstAudibleSample(const std::vector<float>& samples)
+{
+    for (int i = 0; i < static_cast<int>(samples.size()); ++i)
+        if (std::abs(samples[static_cast<std::size_t>(i)]) > 0.0001f)
+            return i;
+    return -1;
+}
 } // namespace
 
 int main()
@@ -52,7 +60,7 @@ int main()
         limiter.prepare(sampleRate, 512, 2);
         limiter.setParameters(brutalDefaults());
         test_support::check(limiter.preparedChannels() == 2, "stereo prepare");
-        test_support::check(limiter.latencySamples() == 96, "lookahead reports exact latency samples");
+        test_support::check(limiter.latencySamples() == 480, "limiter reports fixed maximum lookahead latency");
 
         std::vector<float> loud(1024, 4.0f);
         processMono(limiter, loud);
@@ -64,15 +72,31 @@ int main()
         std::vector<float> impulse(256, 0.0f);
         impulse[0] = 2.0f;
         processMono(limiter, impulse);
-        int firstAudible = -1;
-        for (int i = 0; i < static_cast<int>(impulse.size()); ++i)
-            if (std::abs(impulse[static_cast<std::size_t>(i)]) > 0.0001f)
-            {
-                firstAudible = i;
-                break;
-            }
+        int firstAudible = firstAudibleSample(impulse);
+        test_support::check(firstAudible == -1, "transient remains silent before fixed maximum latency");
+
+        limiter.reset();
+        std::vector<float> longImpulse(640, 0.0f);
+        longImpulse[0] = 2.0f;
+        processMono(limiter, longImpulse);
+        firstAudible = firstAudibleSample(longImpulse);
         test_support::check(firstAudible == limiter.latencySamples(), "transient emerges after exact lookahead latency");
-        test_support::check(maxAbs(impulse) <= ceiling + 0.00001f, "transient obeys ceiling");
+        test_support::check(maxAbs(longImpulse) <= ceiling + 0.00001f, "transient obeys ceiling");
+
+        for (float mix : { 0.0f, 0.5f, 1.0f })
+        {
+            auto mixParams = brutalDefaults();
+            mixParams.mix = mix;
+            mixParams.lookaheadMs = mix == 1.0f ? 10.0f : 0.5f;
+            limiter.prepare(sampleRate, 512, 1);
+            limiter.setParameters(mixParams);
+            std::vector<float> mixedImpulse(640, 0.0f);
+            mixedImpulse[0] = 1.5f;
+            processMono(limiter, mixedImpulse);
+            test_support::check(firstAudibleSample(mixedImpulse) == limiter.latencySamples(), "dry/wet mix first audible sample matches fixed reported latency");
+            test_support::check(limiter.latencySamples() == 480, "lookahead setting does not change reported DSP latency");
+            test_support::check(maxAbs(mixedImpulse) <= ceiling + 0.00001f, "mixed impulse obeys ceiling");
+        }
 
         limiter.reset();
         std::vector<float> burst(320, 0.0f);

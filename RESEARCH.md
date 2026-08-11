@@ -17,14 +17,15 @@ The product is a destructive limiter for Digital Harsh Noise. The limiter may be
 1. Sanitize non-finite input to zero.
 2. Apply bounded predrive.
 3. Apply a creative hard/rounded clip blend controlled by Clip Shape and Maw Bite.
-4. Store clipped samples in fixed delay rings allocated during `prepare`.
-5. Detect peaks over the current lookahead window. With `oversample_detect` enabled, the detector evaluates Catmull-Rom interpolated quarter-sample phases as a conservative 4x peak estimate.
-6. Apply immediate downward gain and bounded release recovery. Adaptive and Recovery controls alter the release coefficient without unbounded loops.
-7. Apply stereo linking by blending each channel detector with the linked peak.
-8. Blend dry and limited paths, then apply the final sample ceiling guard.
+4. Store raw dry and clipped wet samples in fixed delay rings allocated during `prepare`.
+5. Read both dry and wet output from the fixed maximum-latency delay point.
+6. Detect peaks forward from that delayed output point over the current Lookahead preview window. With `oversample_detect` enabled, the detector evaluates Catmull-Rom interpolated quarter-sample phases as a conservative 4x peak estimate.
+7. Apply immediate downward gain and bounded release recovery. Adaptive and Recovery controls alter the release coefficient without unbounded loops.
+8. Apply stereo linking by blending each channel detector with the linked peak.
+9. Blend delayed dry and delayed limited paths, then apply the final sample ceiling guard.
 
 ## Limits
 
 - The four-times detector is a deterministic oversampled estimate, not a standards-certified true-peak meter.
-- Latency is reported as `round(sampleRate * lookaheadMs / 1000)` when the processor is prepared or state is restored.
+- Latency is fixed to the maximum lookahead allocation, `ceil(sampleRate * 10 ms / 1000)`, when the processor is prepared. Lookahead automation changes detector preview only, not host latency or output alignment.
 - The sample ceiling is a digital amplitude guard, not an SPL or hearing-safety guarantee.

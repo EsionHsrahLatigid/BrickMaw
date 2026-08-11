@@ -12,12 +12,12 @@ BrickMaw makes one narrow safety promise: finite output samples are clamped to t
 - Manufacturer: `EsionHsrahLatigid`
 - Manufacturer code: `EHL_`
 - Plugin code: `BrMw`
-- Reported latency: `round(sampleRate * lookaheadMs / 1000)`, set from the Lookahead parameter during prepare/state restore
+- Reported latency: fixed maximum lookahead, `ceil(sampleRate * 10 ms / 1000)`. At 48 kHz this is 480 samples.
 
 ## Parameters
 
 - `ceiling`: final digital sample ceiling, -24 to 0 dBFS
-- `lookahead`: lookahead window and reported latency, 0.5 to 10 ms
+- `lookahead`: detector preview window, 0.5 to 10 ms. Output alignment and reported host latency remain fixed at the maximum lookahead.
 - `release`: base limiter release, 10 to 500 ms
 - `adaptive`: faster recovery during deep gain reduction
 - `pre_drive`: gain into the creative clipper, 0 to 36 dB
@@ -26,7 +26,7 @@ BrickMaw makes one narrow safety promise: finite output samples are clamped to t
 - `maw_bite`: more aggressive clip and adaptive release behavior
 - `recovery`: release speed character
 - `link`: independent-to-linked stereo limiting
-- `mix`: dry/limited blend before the final ceiling guard
+- `mix`: delayed dry/limited blend before the final ceiling guard
 - `output`: post-limiter trim before the final ceiling guard
 
 ## Build
@@ -65,4 +65,4 @@ Targets are fixed for CI and humans:
 - `brickmaw_editor_tests`
 - `ehl_stage_products`
 
-The DSP tests cover sample ceiling, transient lookahead latency, release/adaptation, predrive/clip distinction, oversampled detector conservatism on a constructed waveform, reset determinism, silence, non-finite input, and mono/stereo processing.
+The DSP tests cover sample ceiling, fixed output latency across lookahead and mix settings, release/adaptation, predrive/clip distinction, oversampled detector conservatism on a constructed waveform, reset determinism, silence, non-finite input, and mono/stereo processing.

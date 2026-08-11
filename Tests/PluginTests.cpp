@@ -32,6 +32,15 @@ float maxAbs(const juce::AudioBuffer<float>& buffer)
             peak = std::max(peak, std::abs(buffer.getSample(ch, i)));
     return peak;
 }
+
+int firstAudibleSample(const juce::AudioBuffer<float>& buffer)
+{
+    for (int i = 0; i < buffer.getNumSamples(); ++i)
+        for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+            if (std::abs(buffer.getSample(ch, i)) > 0.0001f)
+                return i;
+    return -1;
+}
 } // namespace
 
 int main()
@@ -74,10 +83,12 @@ int main()
         auto* ceiling = processor.parameters.getParameter(brickmaw::parameters::ceiling);
         auto* lookahead = processor.parameters.getParameter(brickmaw::parameters::lookahead);
         auto* preDrive = processor.parameters.getParameter(brickmaw::parameters::preDrive);
-        test_support::check(ceiling != nullptr && lookahead != nullptr && preDrive != nullptr, "key limiter parameters exist");
+        auto* mix = processor.parameters.getParameter(brickmaw::parameters::mix);
+        test_support::check(ceiling != nullptr && lookahead != nullptr && preDrive != nullptr && mix != nullptr, "key limiter parameters exist");
         ceiling->setValueNotifyingHost(ceiling->convertTo0to1(-6.0f));
         lookahead->setValueNotifyingHost(lookahead->convertTo0to1(2.0f));
         preDrive->setValueNotifyingHost(preDrive->convertTo0to1(24.0f));
+        mix->setValueNotifyingHost(mix->convertTo0to1(1.0f));
 
         juce::MemoryBlock state;
         processor.getStateInformation(state);
@@ -90,9 +101,9 @@ int main()
         test_support::check(std::isfinite(processor.parameters.getRawParameterValue(brickmaw::parameters::ceiling)->load()), "invalid state ignored safely");
 
         processor.prepareToPlay(48000.0, 128);
-        test_support::check(processor.getLatencySamples() == 96, "latency follows current 2 ms lookahead at 48 kHz");
+        test_support::check(processor.getLatencySamples() == 480, "latency reports fixed max lookahead at 48 kHz");
 
-        juce::AudioBuffer<float> buffer(2, 256);
+        juce::AudioBuffer<float> buffer(2, 640);
         for (int i = 0; i < buffer.getNumSamples(); ++i)
         {
             buffer.setSample(0, i, i == 0 ? 4.0f : 1.5f);
@@ -105,5 +116,21 @@ int main()
         for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
             for (int i = 0; i < buffer.getNumSamples(); ++i)
                 test_support::check(std::isfinite(buffer.getSample(ch, i)), "processed samples finite");
+
+        for (float testMix : { 0.0f, 0.5f })
+        {
+            processor.reset();
+            mix->setValueNotifyingHost(mix->convertTo0to1(testMix));
+            lookahead->setValueNotifyingHost(lookahead->convertTo0to1(testMix == 0.0f ? 0.5f : 8.0f));
+            test_support::check(processor.getLatencySamples() == 480, "lookahead automation does not change host latency");
+
+            juce::AudioBuffer<float> impulse(2, 640);
+            impulse.clear();
+            impulse.setSample(0, 0, 2.0f);
+            impulse.setSample(1, 0, -2.0f);
+            processor.processBlock(impulse, midi);
+            test_support::check(firstAudibleSample(impulse) == processor.getLatencySamples(), "plugin first audible sample matches fixed latency for mixed dry/wet path");
+            test_support::check(maxAbs(impulse) <= ceilingGain + 0.00001f, "mixed plugin impulse obeys ceiling");
+        }
     });
 }

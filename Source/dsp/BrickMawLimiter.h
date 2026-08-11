@@ -38,7 +38,7 @@ public:
 
     float processMonoSample(float input) noexcept;
     int preparedChannels() const noexcept { return channels_; }
-    int latencySamples() const noexcept { return lookaheadSamples_; }
+    int latencySamples() const noexcept { return maxLookaheadSamples_; }
     int maxPreparedLookaheadSamples() const noexcept { return maxLookaheadSamples_; }
     float lastGainReductionDb() const noexcept { return lastGainReductionDb_; }
     float currentGain() const noexcept { return gains_[0]; }
@@ -55,9 +55,10 @@ private:
     static constexpr float floorGain = 0.000001f;
 
     float shapeSample(float input) const noexcept;
-    float detectPeakForChannel(int channel, int availableSamples) const noexcept;
-    float readDelayedSample(int channel) const noexcept;
-    void writeSample(int channel, float value) noexcept;
+    float detectPeakForChannel(int channel) const noexcept;
+    float readDelayedWetSample(int channel) const noexcept;
+    float readDelayedDrySample(int channel) const noexcept;
+    void writeSamples(int channel, float dry, float wet) noexcept;
     void advanceWriteIndex() noexcept;
     void updateDerivedTargets() noexcept;
 
@@ -76,6 +77,7 @@ private:
     float releaseCoeff_ { 0.00025f };
     float lastGainReductionDb_ { 0.0f };
     std::array<float, maxChannels> gains_ { 1.0f, 1.0f };
-    std::array<std::vector<float>, maxChannels> delayLines_;
+    std::array<std::vector<float>, maxChannels> wetDelayLines_;
+    std::array<std::vector<float>, maxChannels> dryDelayLines_;
 };
 } // namespace brickmaw::dsp

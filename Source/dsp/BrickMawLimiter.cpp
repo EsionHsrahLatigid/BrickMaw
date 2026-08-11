@@ -13,7 +13,9 @@ void BrickMawLimiter::prepare(double sampleRate, int, int channels) noexcept
         : static_cast<int>(clamp(static_cast<float>(channels), 1.0f, static_cast<float>(maxChannels)));
     maxLookaheadSamples_ = std::max(1, static_cast<int>(std::ceil(sampleRate_ * maxLookaheadMs * 0.001)));
     ringSize_ = maxLookaheadSamples_ + 8;
-    for (auto& line : delayLines_)
+    for (auto& line : wetDelayLines_)
+        line.assign(static_cast<std::size_t>(ringSize_), 0.0f);
+    for (auto& line : dryDelayLines_)
         line.assign(static_cast<std::size_t>(ringSize_), 0.0f);
     updateDerivedTargets();
     reset();
@@ -21,7 +23,9 @@ void BrickMawLimiter::prepare(double sampleRate, int, int channels) noexcept
 
 void BrickMawLimiter::reset() noexcept
 {
-    for (auto& line : delayLines_)
+    for (auto& line : wetDelayLines_)
+        std::fill(line.begin(), line.end(), 0.0f);
+    for (auto& line : dryDelayLines_)
         std::fill(line.begin(), line.end(), 0.0f);
     gains_[0] = 1.0f;
     gains_[1] = 1.0f;
@@ -62,15 +66,14 @@ void BrickMawLimiter::processBlock(float* const* channelData, int channels, int 
         for (int channel = 0; channel < usedChannels; ++channel)
         {
             dry[static_cast<std::size_t>(channel)] = sanitize(channelData[channel][sample]);
-            writeSample(channel, shapeSample(dry[static_cast<std::size_t>(channel)]));
+            writeSamples(channel, dry[static_cast<std::size_t>(channel)], shapeSample(dry[static_cast<std::size_t>(channel)]));
         }
 
-        const int available = std::min(lookaheadSamples_ + 1, samplesSinceReset_ + 1);
         std::array<float, maxChannels> detected {};
         float linkedPeak = 0.0f;
         for (int channel = 0; channel < usedChannels; ++channel)
         {
-            detected[static_cast<std::size_t>(channel)] = detectPeakForChannel(channel, available) * outputGain_;
+            detected[static_cast<std::size_t>(channel)] = detectPeakForChannel(channel) * outputGain_;
             linkedPeak = std::max(linkedPeak, detected[static_cast<std::size_t>(channel)]);
         }
 
@@ -95,8 +98,9 @@ void BrickMawLimiter::processBlock(float* const* channelData, int channels, int 
                 gain += (targetGain - gain) * clamp(releaseCoeff_ * adaptiveSpeed, 0.0f, 1.0f);
             }
 
-            const float wet = readDelayedSample(channel) * gain * outputGain_;
-            float output = dry[static_cast<std::size_t>(channel)] + (wet - dry[static_cast<std::size_t>(channel)]) * params_.mix;
+            const float delayedDry = readDelayedDrySample(channel);
+            const float wet = readDelayedWetSample(channel) * gain * outputGain_;
+            float output = delayedDry + (wet - delayedDry) * params_.mix;
             output = clamp(sanitize(output), -ceilingGain_, ceilingGain_);
             channelData[channel][sample] = output;
             deepestGain = std::min(deepestGain, gain);
@@ -188,17 +192,18 @@ float BrickMawLimiter::shapeSample(float input) const noexcept
     return sanitize(hard + (soft - hard) * params_.clipShape);
 }
 
-float BrickMawLimiter::detectPeakForChannel(int channel, int availableSamples) const noexcept
+float BrickMawLimiter::detectPeakForChannel(int channel) const noexcept
 {
-    if (channel < 0 || channel >= maxChannels || availableSamples <= 0 || ringSize_ <= 0)
+    if (channel < 0 || channel >= maxChannels || ringSize_ <= 0)
         return 0.0f;
 
-    const auto& line = delayLines_[static_cast<std::size_t>(channel)];
-    const int count = std::min(availableSamples, lookaheadSamples_ + 1);
+    const auto& line = wetDelayLines_[static_cast<std::size_t>(channel)];
+    const int count = std::min(lookaheadSamples_ + 1, maxLookaheadSamples_ + 1);
+    const int readIndex = (writeIndex_ - maxLookaheadSamples_ + ringSize_) % ringSize_;
     float peak = 0.0f;
     for (int i = 0; i < count; ++i)
     {
-        const int index = (writeIndex_ - count + 1 + i + ringSize_) % ringSize_;
+        const int index = (readIndex + i) % ringSize_;
         const float x0 = sanitize(line[static_cast<std::size_t>(index)]);
         peak = std::max(peak, std::abs(x0));
         if (params_.oversampleDetect < 0.5f)
@@ -227,15 +232,22 @@ float BrickMawLimiter::detectPeakForChannel(int channel, int availableSamples) c
     return peak;
 }
 
-float BrickMawLimiter::readDelayedSample(int channel) const noexcept
+float BrickMawLimiter::readDelayedWetSample(int channel) const noexcept
 {
-    const int readIndex = (writeIndex_ - lookaheadSamples_ + ringSize_) % ringSize_;
-    return delayLines_[static_cast<std::size_t>(channel)][static_cast<std::size_t>(readIndex)];
+    const int readIndex = (writeIndex_ - maxLookaheadSamples_ + ringSize_) % ringSize_;
+    return wetDelayLines_[static_cast<std::size_t>(channel)][static_cast<std::size_t>(readIndex)];
 }
 
-void BrickMawLimiter::writeSample(int channel, float value) noexcept
+float BrickMawLimiter::readDelayedDrySample(int channel) const noexcept
 {
-    delayLines_[static_cast<std::size_t>(channel)][static_cast<std::size_t>(writeIndex_)] = sanitize(value);
+    const int readIndex = (writeIndex_ - maxLookaheadSamples_ + ringSize_) % ringSize_;
+    return dryDelayLines_[static_cast<std::size_t>(channel)][static_cast<std::size_t>(readIndex)];
+}
+
+void BrickMawLimiter::writeSamples(int channel, float dry, float wet) noexcept
+{
+    dryDelayLines_[static_cast<std::size_t>(channel)][static_cast<std::size_t>(writeIndex_)] = sanitize(dry);
+    wetDelayLines_[static_cast<std::size_t>(channel)][static_cast<std::size_t>(writeIndex_)] = sanitize(wet);
 }
 
 void BrickMawLimiter::advanceWriteIndex() noexcept

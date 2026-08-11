@@ -65,6 +65,11 @@ void BrickMawAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBloc
     syncLatencyToLookahead();
 }
 
+void BrickMawAudioProcessor::reset()
+{
+    limiter.reset();
+}
+
 bool BrickMawAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
     const auto mainIn = layouts.getMainInputChannelSet();
