@@ -24,6 +24,8 @@ public:
     static constexpr int minimumHeight = ehl::juce_design::Metrics::minimumHeight;
 
 private:
+    friend struct EditorTestAccess;
+
     static constexpr int controlCount = 12;
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
 

@@ -7,6 +7,11 @@
 #include <array>
 #include <string>
 
+struct EditorTestAccess
+{
+    static void refresh(BrickMawAudioProcessorEditor& editor) { editor.timerCallback(); }
+};
+
 namespace
 {
 constexpr std::array<const char*, 12> ids {{
@@ -140,8 +145,9 @@ void checkParameterDisplayFollowsControls(juce::AudioProcessorEditor& editor)
 
     const auto before = display->getValues()[0];
     ceiling->setValue(ceiling->getMinimum(), juce::sendNotificationSync);
-    juce::Thread::sleep(40);
-    juce::Timer::callPendingTimersSynchronously();
+    auto* custom = dynamic_cast<BrickMawAudioProcessorEditor*>(&editor);
+    test_support::check(custom != nullptr, "custom editor is available for display refresh");
+    EditorTestAccess::refresh(*custom);
     const auto after = display->getValues()[0];
     test_support::check(after < before - 0.10f, "parameter display follows real slider value changes");
 }
