@@ -2,6 +2,8 @@
 #include "PluginProcessor.h"
 #include "ParameterIDs.h"
 
+#include <cmath>
+
 namespace
 {
 struct ControlSpec
@@ -25,6 +27,12 @@ constexpr std::array<ControlSpec, 12> controls {{
     { brickmaw::parameters::mix, "Mix", "Blends the delayed limited path with the dry path before the final ceiling guard." },
     { brickmaw::parameters::output, "Output", "Post-limiter output trim before the final ceiling guard." },
 }};
+
+float normalizedSliderValue(juce::Slider& slider) noexcept
+{
+    const auto normalized = static_cast<float>(slider.valueToProportionOfLength(slider.getValue()));
+    return std::isfinite(normalized) ? juce::jlimit(0.0f, 1.0f, normalized) : 0.0f;
+}
 } // namespace
 
 BrickMawAudioProcessorEditor::BrickMawAudioProcessorEditor(BrickMawAudioProcessor& p)
@@ -41,6 +49,12 @@ BrickMawAudioProcessorEditor::BrickMawAudioProcessorEditor(BrickMawAudioProcesso
     setTitle("BrickMaw");
     setDescription("BrickMaw monochrome 8-bit limiter editor");
     setWantsKeyboardFocus(true);
+
+    parameterDisplay.setComponentID("brickmaw-parameter-display");
+    parameterDisplay.setName("BrickMaw parameter display");
+    parameterDisplay.setInterceptsMouseClicks(false, false);
+    parameterDisplay.setWantsKeyboardFocus(false);
+    addAndMakeVisible(parameterDisplay);
 
     for (std::size_t i = 0; i < controls.size(); ++i)
     {
@@ -66,11 +80,14 @@ BrickMawAudioProcessorEditor::BrickMawAudioProcessorEditor(BrickMawAudioProcesso
         attachments[i] = std::make_unique<SliderAttachment>(ownerProcessor.parameters, controls[i].id, slider);
     }
 
+    updateParameterDisplay();
+    startTimerHz(30);
     setSize(defaultWidth, defaultHeight);
 }
 
 BrickMawAudioProcessorEditor::~BrickMawAudioProcessorEditor()
 {
+    stopTimer();
     for (auto& slider : sliders)
         slider.setLookAndFeel(nullptr);
     for (auto& label : labels)
@@ -86,8 +103,23 @@ void BrickMawAudioProcessorEditor::paint(juce::Graphics& g)
 
 void BrickMawAudioProcessorEditor::resized()
 {
+    parameterDisplay.setBounds(ehl::juce_design::parameterDisplayArea(getLocalBounds()));
+
     for (int i = 0; i < controlCount; ++i)
         ehl::juce_design::layoutLabelledControl(labels[static_cast<std::size_t>(i)],
                                                 sliders[static_cast<std::size_t>(i)],
                                                 ehl::juce_design::controlCell(getLocalBounds(), static_cast<std::size_t>(i)));
+}
+
+void BrickMawAudioProcessorEditor::timerCallback()
+{
+    updateParameterDisplay();
+}
+
+void BrickMawAudioProcessorEditor::updateParameterDisplay()
+{
+    parameterDisplay.setValues({ normalizedSliderValue(sliders[0]),
+                                 normalizedSliderValue(sliders[1]),
+                                 normalizedSliderValue(sliders[2]),
+                                 normalizedSliderValue(sliders[4]) });
 }

@@ -7,7 +7,8 @@
 
 class BrickMawAudioProcessor;
 
-class BrickMawAudioProcessorEditor final : public juce::AudioProcessorEditor
+class BrickMawAudioProcessorEditor final : public juce::AudioProcessorEditor,
+                                           private juce::Timer
 {
 public:
     explicit BrickMawAudioProcessorEditor(BrickMawAudioProcessor&);
@@ -26,8 +27,12 @@ private:
     static constexpr int controlCount = 12;
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
 
+    void timerCallback() override;
+    void updateParameterDisplay();
+
     BrickMawAudioProcessor& ownerProcessor;
     ehl::juce_design::LookAndFeel ehlLookAndFeel;
+    ehl::juce_design::ParameterDisplay parameterDisplay { ehl::juce_design::DisplayKind::limiter };
     juce::TooltipWindow tooltipWindow { this, 700 };
     juce::String tooltipText;
     std::array<juce::Slider, controlCount> sliders;
