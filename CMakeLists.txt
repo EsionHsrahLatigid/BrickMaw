@@ -46,6 +46,8 @@ if(BRICKMAW_BUILD_PLUGIN)
         FetchContent_MakeAvailable(JUCE)
     endif()
 
+    add_subdirectory(modules/juce-ehl-design-module)
+
     set(BRICKMAW_FORMATS VST3 Standalone)
     if(APPLE)
         list(APPEND BRICKMAW_FORMATS AU)
@@ -84,6 +86,7 @@ if(BRICKMAW_BUILD_PLUGIN)
     target_link_libraries(BrickMaw
         PRIVATE
             brickmaw_dsp
+            EHL::JuceDesign
             juce::juce_audio_utils
             juce::juce_dsp
         PUBLIC
@@ -154,7 +157,7 @@ if(BRICKMAW_BUILD_PLUGIN)
 
         add_executable(brickmaw_editor_tests Tests/EditorTests.cpp)
         target_include_directories(brickmaw_editor_tests PRIVATE Source)
-        target_link_libraries(brickmaw_editor_tests PRIVATE BrickMaw juce::juce_audio_utils)
+        target_link_libraries(brickmaw_editor_tests PRIVATE BrickMaw EHL::JuceDesign juce::juce_audio_utils)
         add_test(NAME brickmaw_editor_tests COMMAND brickmaw_editor_tests)
 
         add_test(

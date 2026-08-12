@@ -31,7 +31,10 @@ BrickMawAudioProcessorEditor::BrickMawAudioProcessorEditor(BrickMawAudioProcesso
     : AudioProcessorEditor(&p), ownerProcessor(p),
       tooltipText("BrickMaw: destructive lookahead limiter with ceiling, release, predrive, 4x detector, link, mix, and output controls.")
 {
-    setResizeLimits(minimumWidth, minimumHeight, defaultWidth * 2, defaultHeight * 2);
+    setLookAndFeel(&ehlLookAndFeel);
+    setResizeLimits(minimumWidth, minimumHeight,
+                    ehl::juce_design::Metrics::maximumWidth,
+                    ehl::juce_design::Metrics::maximumHeight);
     setResizable(true, true);
     setName("BrickMaw editor");
     setComponentID("brickmaw-editor");
@@ -42,14 +45,7 @@ BrickMawAudioProcessorEditor::BrickMawAudioProcessorEditor(BrickMawAudioProcesso
     for (std::size_t i = 0; i < controls.size(); ++i)
     {
         auto& slider = sliders[i];
-        slider.setSliderStyle(juce::Slider::LinearHorizontal);
-        slider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 84, 24);
-        slider.setColour(juce::Slider::trackColourId, juce::Colour(0xff8a8a86));
-        slider.setColour(juce::Slider::backgroundColourId, juce::Colour(0xff2a2a2a));
-        slider.setColour(juce::Slider::thumbColourId, juce::Colour(0xfff2f2f0));
-        slider.setColour(juce::Slider::textBoxTextColourId, juce::Colour(0xfff2f2f0));
-        slider.setColour(juce::Slider::textBoxBackgroundColourId, juce::Colour(0xff050505));
-        slider.setColour(juce::Slider::textBoxOutlineColourId, juce::Colour(0xff8a8a86));
+        ehl::juce_design::styleSlider(slider);
         slider.setName(controls[i].label);
         slider.setComponentID(juce::String("brickmaw-") + controls[i].id);
         slider.setTitle(controls[i].label);
@@ -61,11 +57,10 @@ BrickMawAudioProcessorEditor::BrickMawAudioProcessorEditor(BrickMawAudioProcesso
 
         auto& label = labels[i];
         label.setText(controls[i].label, juce::dontSendNotification);
+        ehl::juce_design::styleLabel(label);
         label.setName(juce::String(controls[i].label) + " label");
         label.setComponentID(juce::String("brickmaw-") + controls[i].id + "-label");
         label.setTooltip(controls[i].tooltip);
-        label.setColour(juce::Label::textColourId, juce::Colour(0xfff2f2f0));
-        label.attachToComponent(&slider, true);
         addAndMakeVisible(label);
 
         attachments[i] = std::make_unique<SliderAttachment>(ownerProcessor.parameters, controls[i].id, slider);
@@ -74,45 +69,25 @@ BrickMawAudioProcessorEditor::BrickMawAudioProcessorEditor(BrickMawAudioProcesso
     setSize(defaultWidth, defaultHeight);
 }
 
+BrickMawAudioProcessorEditor::~BrickMawAudioProcessorEditor()
+{
+    for (auto& slider : sliders)
+        slider.setLookAndFeel(nullptr);
+    for (auto& label : labels)
+        label.setLookAndFeel(nullptr);
+    tooltipWindow.setLookAndFeel(nullptr);
+    setLookAndFeel(nullptr);
+}
+
 void BrickMawAudioProcessorEditor::paint(juce::Graphics& g)
 {
-    const auto area = getLocalBounds();
-    g.fillAll(juce::Colour(0xff050505));
-
-    g.setColour(juce::Colour(0xfff2f2f0));
-    g.setFont(juce::FontOptions(24.0f, juce::Font::bold));
-    g.drawText("BrickMaw", 32, 16, area.getWidth() - 64, 32, juce::Justification::centredLeft);
-
-    g.setColour(juce::Colour(0xff8a8a86));
-    g.setFont(juce::FontOptions(12.0f));
-    g.drawText("LIMITER", 32, 48, area.getWidth() - 64, 16, juce::Justification::centredLeft);
-
-    g.setColour(juce::Colour(0xff2a2a2a));
-    g.drawHorizontalLine(72, 32.0f, static_cast<float>(area.getWidth() - 32));
+    ehl::juce_design::paintEditorChrome(g, getLocalBounds(), "BrickMaw", "LIMITER");
 }
 
 void BrickMawAudioProcessorEditor::resized()
 {
-    auto area = getLocalBounds().reduced(32);
-    area.removeFromTop(48);
-
-    const int rowHeight = 32;
-    const int rowGap = 8;
-    const int columns = 2;
-    const int labelWidth = 92;
-    const int columnGap = 24;
-    const int columnWidth = (area.getWidth() - columnGap) / columns;
-
     for (int i = 0; i < controlCount; ++i)
-    {
-        const int column = i / 6;
-        const int row = i % 6;
-        juce::Rectangle<int> rowBounds(area.getX() + column * (columnWidth + columnGap),
-                                       area.getY() + row * (rowHeight + rowGap),
-                                       columnWidth,
-                                       rowHeight);
-        labels[static_cast<std::size_t>(i)].setBounds(rowBounds.removeFromLeft(labelWidth));
-        rowBounds.removeFromLeft(8);
-        sliders[static_cast<std::size_t>(i)].setBounds(rowBounds);
-    }
+        ehl::juce_design::layoutLabelledControl(labels[static_cast<std::size_t>(i)],
+                                                sliders[static_cast<std::size_t>(i)],
+                                                ehl::juce_design::controlCell(getLocalBounds(), static_cast<std::size_t>(i)));
 }

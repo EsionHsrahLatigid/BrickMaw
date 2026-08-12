@@ -16,7 +16,9 @@ if missing:
 text = "\n".join((root / p).read_text() for p in required)
 checks = {
     "juce commit": "91ad83ae34a81e0833b1a2b0866f54846370ae53" in text,
-    "yup-actions commit": "d7746cba582c0a00e6e7f0cdc37ae3b2d38830d8" in text,
+    "juce-ci commit": "6182ac7554be6df6dee46d1e75eb097fde97abaf" in text,
+    "EHL design module": "add_subdirectory(modules/juce-ehl-design-module)" in text
+        and "EHL::JuceDesign" in text,
     "stage target": "ehl_stage_products" in text,
     "no generic editor": "GenericAudioProcessorEditor" in (root / "Tests/EditorTests.cpp").read_text()
         and "new juce::GenericAudioProcessorEditor" not in text,
