@@ -28,9 +28,11 @@ void checkPaintContract(juce::AudioProcessorEditor& editor)
 {
     juce::Image image(juce::Image::RGB, BrickMawAudioProcessorEditor::defaultWidth,
                       BrickMawAudioProcessorEditor::defaultHeight, true);
-    juce::Graphics g(image);
     editor.setBounds(0, 0, image.getWidth(), image.getHeight());
-    editor.paint(g);
+    {
+        juce::Graphics g(image);
+        editor.paint(g);
+    }
 
     const auto background = ehl::juce_design::Palette::ink();
     const auto divider = ehl::juce_design::Palette::low();
