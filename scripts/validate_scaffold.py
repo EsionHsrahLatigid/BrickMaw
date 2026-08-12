@@ -16,7 +16,7 @@ if missing:
 text = "\n".join((root / p).read_text() for p in required)
 checks = {
     "juce commit": "91ad83ae34a81e0833b1a2b0866f54846370ae53" in text,
-    "juce-ci commit": "6182ac7554be6df6dee46d1e75eb097fde97abaf" in text,
+    "juce-ci commit": "926c5bb10335c29503f92869169759ec18d71449" in text,
     "EHL design module": "add_subdirectory(modules/juce-ehl-design-module)" in text
         and "EHL::JuceDesign" in text,
     "stage target": "ehl_stage_products" in text,

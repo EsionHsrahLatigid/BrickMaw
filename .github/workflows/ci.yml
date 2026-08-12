@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   ci:
-    uses: EsionHsrahLatigid/juce-ci/.github/workflows/plugin-ci.yml@6182ac7554be6df6dee46d1e75eb097fde97abaf
+    uses: EsionHsrahLatigid/juce-ci/.github/workflows/plugin-ci.yml@926c5bb10335c29503f92869169759ec18d71449
     permissions:
       contents: read
     with:
