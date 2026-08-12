@@ -44,6 +44,11 @@ int main()
             test_support::check(control->getName().isNotEmpty(), std::string("control has accessible name for ") + id);
             test_support::check(control->getProperties()["brickmawTooltip"].toString().isNotEmpty(), std::string("control has tooltip for ") + id);
             test_support::check(control->getWantsKeyboardFocus(), std::string("control has keyboard focus for ") + id);
+            const auto bounds = control->getBounds();
+            test_support::check(! bounds.isEmpty(), std::string("initial parameter control bounds are non-empty for ") + id);
+            test_support::check(bounds.getY() >= 80, std::string("initial parameter control stays below simple header for ") + id);
+            test_support::check(bounds.getRight() <= editor->getWidth(), std::string("initial parameter control stays inside editor width for ") + id);
+            test_support::check(bounds.getBottom() <= editor->getHeight(), std::string("initial parameter control stays inside editor height for ") + id);
         }
 
         juce::Image image(juce::Image::RGB, 320, 200, true);
@@ -51,11 +56,38 @@ int main()
         editor->setBounds(0, 0, image.getWidth(), image.getHeight());
         editor->resized();
         editor->paint(g);
-        const auto first = image.getPixelAt(0, 0);
-        bool varied = false;
-        for (int y = 0; y < image.getHeight(); y += 16)
-            for (int x = 0; x < image.getWidth(); x += 16)
-                varied = varied || image.getPixelAt(x, y) != first;
-        test_support::check(varied, "software paint uses monochrome palette and procedural motif");
+        const auto background = juce::Colour(0xff050505);
+        const auto divider = juce::Colour(0xff2a2a2a);
+        bool headerHasInk = false;
+        bool separatorBandIsSimple = true;
+        bool bodyIsPlain = true;
+        int maxChannelSpread = 0;
+        for (int y = 0; y < image.getHeight(); ++y)
+        {
+            for (int x = 0; x < image.getWidth(); ++x)
+            {
+                const auto pixel = image.getPixelAt(x, y);
+                headerHasInk = headerHasInk || (y < 64 && pixel != background);
+                if (y >= 64 && y < 80)
+                {
+                    const bool onDivider = y == 72 && x >= 32 && x < image.getWidth() - 32;
+                    separatorBandIsSimple = separatorBandIsSimple && pixel == (onDivider ? divider : background);
+                }
+                bodyIsPlain = bodyIsPlain && (y < 80 || pixel == background);
+                const int red = pixel.getRed();
+                const int green = pixel.getGreen();
+                const int blue = pixel.getBlue();
+                const int high = juce::jmax(juce::jmax(red, green), blue);
+                const int low = juce::jmin(juce::jmin(red, green), blue);
+                maxChannelSpread = juce::jmax(maxChannelSpread, high - low);
+            }
+        }
+        test_support::check(headerHasInk, "simple header paints product text above divider");
+        test_support::check(separatorBandIsSimple, "paint keeps only one divider in the 64px to 79px separator band");
+        test_support::check(bodyIsPlain, "paint has no grid, motif, frame, or parameter-driven decoration below y=80");
+        // The DHN9 paper/mid colours intentionally use a slight warm monochrome offset.
+        test_support::check(maxChannelSpread <= 4,
+                            "paint stays monochrome within DHN9 palette tolerance, max spread "
+                                + std::to_string(maxChannelSpread));
     });
 }

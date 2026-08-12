@@ -31,7 +31,6 @@ BrickMawAudioProcessorEditor::BrickMawAudioProcessorEditor(BrickMawAudioProcesso
     : AudioProcessorEditor(&p), ownerProcessor(p),
       tooltipText("BrickMaw: destructive lookahead limiter with ceiling, release, predrive, 4x detector, link, mix, and output controls.")
 {
-    setSize(defaultWidth, defaultHeight);
     setResizeLimits(minimumWidth, minimumHeight, defaultWidth * 2, defaultHeight * 2);
     setResizable(true, true);
     setName("BrickMaw editor");
@@ -45,11 +44,12 @@ BrickMawAudioProcessorEditor::BrickMawAudioProcessorEditor(BrickMawAudioProcesso
         auto& slider = sliders[i];
         slider.setSliderStyle(juce::Slider::LinearHorizontal);
         slider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 84, 24);
-        slider.setColour(juce::Slider::trackColourId, juce::Colour(0xffd8d8d8));
-        slider.setColour(juce::Slider::backgroundColourId, juce::Colour(0xff222222));
-        slider.setColour(juce::Slider::thumbColourId, juce::Colour(0xffffffff));
-        slider.setColour(juce::Slider::textBoxTextColourId, juce::Colour(0xfff0f0f0));
-        slider.setColour(juce::Slider::textBoxBackgroundColourId, juce::Colour(0xff080808));
+        slider.setColour(juce::Slider::trackColourId, juce::Colour(0xff8a8a86));
+        slider.setColour(juce::Slider::backgroundColourId, juce::Colour(0xff2a2a2a));
+        slider.setColour(juce::Slider::thumbColourId, juce::Colour(0xfff2f2f0));
+        slider.setColour(juce::Slider::textBoxTextColourId, juce::Colour(0xfff2f2f0));
+        slider.setColour(juce::Slider::textBoxBackgroundColourId, juce::Colour(0xff050505));
+        slider.setColour(juce::Slider::textBoxOutlineColourId, juce::Colour(0xff8a8a86));
         slider.setName(controls[i].label);
         slider.setComponentID(juce::String("brickmaw-") + controls[i].id);
         slider.setTitle(controls[i].label);
@@ -64,12 +64,14 @@ BrickMawAudioProcessorEditor::BrickMawAudioProcessorEditor(BrickMawAudioProcesso
         label.setName(juce::String(controls[i].label) + " label");
         label.setComponentID(juce::String("brickmaw-") + controls[i].id + "-label");
         label.setTooltip(controls[i].tooltip);
-        label.setColour(juce::Label::textColourId, juce::Colour(0xfff0f0f0));
+        label.setColour(juce::Label::textColourId, juce::Colour(0xfff2f2f0));
         label.attachToComponent(&slider, true);
         addAndMakeVisible(label);
 
         attachments[i] = std::make_unique<SliderAttachment>(ownerProcessor.parameters, controls[i].id, slider);
     }
+
+    setSize(defaultWidth, defaultHeight);
 }
 
 void BrickMawAudioProcessorEditor::paint(juce::Graphics& g)
@@ -77,55 +79,34 @@ void BrickMawAudioProcessorEditor::paint(juce::Graphics& g)
     const auto area = getLocalBounds();
     g.fillAll(juce::Colour(0xff050505));
 
-    constexpr int grid = 8;
-    g.setColour(juce::Colour(0xff202020));
-    for (int x = 0; x < area.getWidth(); x += grid)
-        g.drawVerticalLine(x, 0.0f, static_cast<float>(area.getHeight()));
-    for (int y = 0; y < area.getHeight(); y += grid)
-        g.drawHorizontalLine(y, 0.0f, static_cast<float>(area.getWidth()));
+    g.setColour(juce::Colour(0xfff2f2f0));
+    g.setFont(juce::FontOptions(24.0f, juce::Font::bold));
+    g.drawText("BrickMaw", 32, 16, area.getWidth() - 64, 32, juce::Justification::centredLeft);
 
-    g.setColour(juce::Colour(0xfff0f0f0));
-    g.setFont(juce::FontOptions(32.0f, juce::Font::bold));
-    g.drawText("BrickMaw", 32, 22, area.getWidth() - 64, 44, juce::Justification::centredLeft);
-    g.setFont(juce::FontOptions(15.0f));
-    g.drawText("jp.ehl.brickmaw / BrMw / exact sample ceiling, not BS.1770 certified", 34, 66, area.getWidth() - 68, 24, juce::Justification::centredLeft);
+    g.setColour(juce::Colour(0xff8a8a86));
+    g.setFont(juce::FontOptions(12.0f));
+    g.drawText("LIMITER", 32, 48, area.getWidth() - 64, 16, juce::Justification::centredLeft);
 
-    const auto bounds = area.reduced(32);
-    const int motifTop = bounds.getBottom() - 104;
-    const int centre = bounds.getCentreX();
-    g.setColour(juce::Colour(0xffcfcfcf));
-    for (int x = bounds.getX(); x < bounds.getRight(); x += 24)
-    {
-        const int distance = std::abs(x - centre);
-        const int jaw = juce::jlimit(16, 88, 96 - distance / 7);
-        const bool upper = ((x / 24) % 2) == 0;
-        g.fillRect(x, upper ? motifTop : motifTop + 96 - jaw, 12, jaw);
-    }
-
-    const float reduction = juce::jlimit(0.0f, 36.0f, ownerProcessor.limiter.lastGainReductionDb());
-    const int bricks = static_cast<int>(reduction / 3.0f);
-    g.setColour(juce::Colour(0xffffffff));
-    for (int i = 0; i < bricks; ++i)
-        g.fillRect(bounds.getRight() - 18 - i * 18, motifTop - 24, 10, 16);
+    g.setColour(juce::Colour(0xff2a2a2a));
+    g.drawHorizontalLine(72, 32.0f, static_cast<float>(area.getWidth() - 32));
 }
 
 void BrickMawAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced(32);
-    area.removeFromTop(96);
-    area.removeFromBottom(112);
+    area.removeFromTop(48);
 
-    const int rowHeight = 31;
-    const int rowGap = 7;
-    const int columns = getWidth() >= 860 ? 2 : 1;
+    const int rowHeight = 32;
+    const int rowGap = 8;
+    const int columns = 2;
     const int labelWidth = 92;
-    const int columnGap = 34;
-    const int columnWidth = columns == 2 ? (area.getWidth() - columnGap) / 2 : area.getWidth();
+    const int columnGap = 24;
+    const int columnWidth = (area.getWidth() - columnGap) / columns;
 
     for (int i = 0; i < controlCount; ++i)
     {
-        const int column = columns == 2 ? i % 2 : 0;
-        const int row = columns == 2 ? i / 2 : i;
+        const int column = i / 6;
+        const int row = i % 6;
         juce::Rectangle<int> rowBounds(area.getX() + column * (columnWidth + columnGap),
                                        area.getY() + row * (rowHeight + rowGap),
                                        columnWidth,
