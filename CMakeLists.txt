@@ -8,6 +8,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(BRICKMAW_BUILD_PLUGIN "Build the JUCE plug-in targets" ON)
 option(BRICKMAW_BUILD_TESTS "Build the test targets" ON)
+set(EHL_COPY_PLUGIN_AFTER_BUILD_DEFAULT OFF)
+if(APPLE AND NOT DEFINED ENV{CI})
+    set(EHL_COPY_PLUGIN_AFTER_BUILD_DEFAULT ON)
+endif()
+option(EHL_COPY_PLUGIN_AFTER_BUILD
+    "Copy built plug-in formats to the current user's standard plug-in folders"
+    ${EHL_COPY_PLUGIN_AFTER_BUILD_DEFAULT})
 set(BRICKMAW_ARTIFACT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/artifacts" CACHE PATH "Stable product staging root")
 set(EHL_JUCE_SOURCE_DIR "" CACHE PATH "Existing JUCE source checkout; avoids network when set")
 
@@ -53,6 +60,14 @@ if(BRICKMAW_BUILD_PLUGIN)
         list(APPEND BRICKMAW_FORMATS AU)
     endif()
 
+    set(EHL_PLUGIN_COPY_ARGS
+        COPY_PLUGIN_AFTER_BUILD ${EHL_COPY_PLUGIN_AFTER_BUILD})
+    if(APPLE)
+        list(APPEND EHL_PLUGIN_COPY_ARGS
+            VST3_COPY_DIR "$ENV{HOME}/Library/Audio/Plug-Ins/VST3"
+            AU_COPY_DIR "$ENV{HOME}/Library/Audio/Plug-Ins/Components")
+    endif()
+
     juce_add_plugin(BrickMaw
         VERSION ${PROJECT_VERSION}
         COMPANY_NAME "EsionHsrahLatigid"
@@ -69,7 +84,7 @@ if(BRICKMAW_BUILD_PLUGIN)
         EDITOR_WANTS_KEYBOARD_FOCUS TRUE
         MICROPHONE_PERMISSION_ENABLED TRUE
         MICROPHONE_PERMISSION_TEXT "BrickMaw processes live audio input."
-        COPY_PLUGIN_AFTER_BUILD FALSE)
+        ${EHL_PLUGIN_COPY_ARGS})
 
     target_sources(BrickMaw PRIVATE
         Source/ParameterIDs.h
