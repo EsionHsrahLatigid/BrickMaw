@@ -1,6 +1,6 @@
 # Research
 
-BrickMaw follows the DHN9 G001 limiter plan.
+BrickMaw is documented as a fixed-latency destructive limiter with bounded predrive, a deterministic detector estimate, adaptive recovery, stereo linking, and a final digital sample ceiling guard.
 
 ## Sources
 
@@ -10,7 +10,7 @@ BrickMaw follows the DHN9 G001 limiter plan.
 
 ## Design Interpretation
 
-The product is a destructive limiter for Digital Harsh Noise. The limiter may be ugly and clipped, but the output contract is narrow and testable: finite samples leaving the processor do not exceed the configured digital sample ceiling beyond tiny floating tolerance.
+The product is a destructive lookahead limiter. The limiter may be clipped and forceful, but the output contract is narrow and testable: finite samples leaving the processor do not exceed the configured digital sample ceiling beyond tiny floating tolerance.
 
 ## Algorithm
 

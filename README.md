@@ -1,6 +1,6 @@
 # BrickMaw
 
-BrickMaw is an EHL Digital Harsh Noise limiter. It combines fixed-latency lookahead limiting, a four-times oversampled peak detector estimate, destructive predrive clipping, adaptive release, stereo linking, wet/dry blend, and a final sample ceiling guard.
+BrickMaw is a destructive lookahead limiter from EsionHsrahLatigid. It combines fixed-latency lookahead limiting, a four-times oversampled peak detector estimate, destructive predrive clipping, adaptive release, stereo linking, wet/dry blend, and a final sample ceiling guard.
 
 BrickMaw makes one narrow safety promise: finite output samples are clamped to the configured digital ceiling within floating-point tolerance. It is not a certified ITU-R BS.1770-5 true-peak or loudness meter, and it does not claim BS.1770 compliance.
 
