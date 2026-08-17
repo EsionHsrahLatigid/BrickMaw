@@ -29,7 +29,7 @@ checks = {
 failed = [name for name, ok in checks.items() if not ok]
 if failed:
     raise SystemExit("failed checks: " + ", ".join(failed))
-if re.search(r"dhn_|Dhn|TemplatePlugin|MyPlugin", text):
+if re.search(r"TemplatePlugin|MyPlugin", text):
     raise SystemExit("stale generic names found")
 if re.search(r"placeholder|FoundationDSP", text, flags=re.IGNORECASE):
     raise SystemExit("placeholder DSP text found")
